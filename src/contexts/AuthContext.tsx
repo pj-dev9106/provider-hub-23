@@ -30,7 +30,7 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-  signInWithMicrosoft: (roleOrRoles?: Role | Role[]) => Promise<void>;
+  signInWithMicrosoft: (roleOrRoles?: Role | Role[] | string) => Promise<void>;
   setActiveRole: (role: Role) => void;
   signOut: () => void;
 }
@@ -41,37 +41,37 @@ const MOCK_BASES: Record<string, { id: string; displayName: string; email: strin
   provider: {
     id: "entra-mock-provider-1",
     displayName: "Sarah Johnson",
-    email: "sarah.johnson@healthcare.org",
+    email: "sarah.johnson@reliashealthcare.com",
     avatar: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=100&h=100&fit=crop&crop=face",
   },
   coordinator: {
     id: "entra-mock-coordinator-1",
     displayName: "Maria Garcia",
-    email: "maria.garcia@healthcare.org",
+    email: "maria.garcia@reliashealthcare.com",
     avatar: "https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=100&h=100&fit=crop&crop=face",
   },
   corporateAdmin: {
     id: "entra-mock-admin-1",
     displayName: "James Chen",
-    email: "james.chen@healthcare.org",
+    email: "james.chen@reliashealthcare.com",
     avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face",
   },
   corporateClinician: {
     id: "entra-mock-corp-clinician-1",
     displayName: "Alex Rivera",
-    email: "alex.rivera@healthcare.org",
+    email: "alex.rivera@reliashealthcare.com",
     avatar: "https://images.unsplash.com/photo-1612349316228-5942a9b489c2?w=100&h=100&fit=crop&crop=face",
   },
   corporateContributor: {
     id: "entra-mock-corp-contrib-1",
     displayName: "Jordan Lee",
-    email: "jordan.lee@healthcare.org",
+    email: "jordan.lee@reliashealthcare.com",
     avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&h=100&fit=crop&crop=face",
   },
   dualRole: {
     id: "entra-mock-dual-1",
     displayName: "Sam Taylor",
-    email: "sam.taylor@healthcare.org",
+    email: "sam.taylor@reliashealthcare.com",
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face",
   },
 };
@@ -84,12 +84,45 @@ const ROLE_TO_MOCK_KEY: Record<Role, string> = {
   [ROLES.CorporateContributor]: "corporateContributor",
 };
 
-/** Mock Microsoft Entra ID (Azure AD) sign-in. roleOrRoles: single role or array for dual-role user. */
-async function mockEntraSignIn(roleOrRoles: Role | Role[]): Promise<AuthUser> {
+/** Demo: email → mock user key + roles. Use these emails (any password) to sign in as that role. */
+export const DEMO_CREDENTIALS: { email: string; label: string; roles: string }[] = [
+  { email: "sarah.johnson@reliashealthcare.com", label: "Provider", roles: "Provider" },
+  { email: "maria.garcia@reliashealthcare.com", label: "Coordinator", roles: "Coordinator" },
+  { email: "james.chen@reliashealthcare.com", label: "Corporate Admin", roles: "Corporate Admin" },
+  { email: "alex.rivera@reliashealthcare.com", label: "Corporate Clinician", roles: "Corporate Clinician" },
+  { email: "jordan.lee@reliashealthcare.com", label: "Corporate Contributor", roles: "Corporate Contributor" },
+  { email: "sam.taylor@reliashealthcare.com", label: "Provider + Corporate Admin (dual)", roles: "Provider, Corporate Admin" },
+];
+
+const EMAIL_TO_MOCK: Record<string, { key: string; roles: Role[] }> = {
+  "sarah.johnson@reliashealthcare.com": { key: "provider", roles: [ROLES.Provider] },
+  "maria.garcia@reliashealthcare.com": { key: "coordinator", roles: [ROLES.Coordinator] },
+  "james.chen@reliashealthcare.com": { key: "corporateAdmin", roles: [ROLES.CorporateAdmin] },
+  "alex.rivera@reliashealthcare.com": { key: "corporateClinician", roles: [ROLES.CorporateClinician] },
+  "jordan.lee@reliashealthcare.com": { key: "corporateContributor", roles: [ROLES.CorporateContributor] },
+  "sam.taylor@reliashealthcare.com": { key: "dualRole", roles: [ROLES.Provider, ROLES.CorporateAdmin] },
+};
+
+function getAuthUserByEmail(email: string): AuthUser | null {
+  const normalized = email.trim().toLowerCase();
+  const entry = EMAIL_TO_MOCK[normalized];
+  if (!entry) return null;
+  const base = MOCK_BASES[entry.key as keyof typeof MOCK_BASES];
+  if (!base) return null;
+  return { ...base, roles: entry.roles };
+}
+
+/** Mock Microsoft Entra ID (Azure AD) sign-in. roleOrRoles: single role, array, or demo email. */
+async function mockEntraSignIn(roleOrRoles: Role | Role[] | string): Promise<AuthUser> {
   await new Promise((resolve) => setTimeout(resolve, 800));
+  if (typeof roleOrRoles === "string") {
+    const user = getAuthUserByEmail(roleOrRoles);
+    if (user) return user;
+    return mockEntraSignIn(ROLES.Provider);
+  }
   const roles = Array.isArray(roleOrRoles) ? roleOrRoles : [roleOrRoles];
   const key = roles.length > 1 ? "dualRole" : ROLE_TO_MOCK_KEY[roles[0]];
-  const base = MOCK_BASES[key];
+  const base = MOCK_BASES[key as keyof typeof MOCK_BASES];
   return { ...base, roles };
 }
 
@@ -162,12 +195,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user, activeRole]);
 
-  const signInWithMicrosoft = useCallback(async (roleOrRoles?: Role | Role[]) => {
+  const signInWithMicrosoft = useCallback(async (roleOrRoles?: Role | Role[] | string) => {
     setIsLoading(true);
     try {
       const effective = roleOrRoles ?? ROLES.Provider;
-      const roles = Array.isArray(effective) ? effective : [effective];
-      const authUser = await mockEntraSignIn(roles);
+      const authUser = await mockEntraSignIn(effective);
       setUser(authUser);
       saveUser(authUser);
       const nextActive = loadActiveRole(authUser);

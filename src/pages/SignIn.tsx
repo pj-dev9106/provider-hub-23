@@ -11,7 +11,7 @@ import {
   LogIn,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { ROLES, type Role } from "@/lib/roles";
+import { DEMO_CREDENTIALS } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,40 +19,40 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 
-const ROLE_OPTIONS: { value: Role; label: string }[] = [
-  { value: ROLES.Provider, label: "Provider" },
-  { value: ROLES.Coordinator, label: "Coordinator" },
-  { value: ROLES.CorporateAdmin, label: "Corporate Admin" },
-  { value: ROLES.CorporateClinician, label: "Corporate Clinician" },
-  { value: ROLES.CorporateContributor, label: "Corporate Contributor" },
-];
-
-/** Dual-role preset for demo (e.g. clinician who is also Corporate). */
-const DUAL_ROLE_OPTION = {
-  label: "Provider + Corporate Admin (dual-role)",
-  roles: [ROLES.Provider, ROLES.CorporateAdmin] as Role[],
-};
+const DEMO_EMAILS = DEMO_CREDENTIALS.map((c) => c.email.toLowerCase());
 
 export default function SignIn() {
   const { signInWithMicrosoft, isLoading } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [selectedRole, setSelectedRole] = useState<Role>(ROLES.Provider);
-  const [useDualRole, setUseDualRole] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleMicrosoftSignIn = async () => {
-    await signInWithMicrosoft(useDualRole ? DUAL_ROLE_OPTION.roles : selectedRole);
+  const handleSignIn = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    setError("");
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed || !password) {
+      setError("Enter email and password.");
+      return;
+    }
+    if (!DEMO_EMAILS.includes(trimmed)) {
+      setError("Use a valid demo email (any password).");
+      return;
+    }
+    await signInWithMicrosoft(trimmed);
     navigate("/", { replace: true });
   };
 
-  const handleDemoSignIn = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email && password) {
-      signInWithMicrosoft(useDualRole ? DUAL_ROLE_OPTION.roles : selectedRole).then(() =>
-        navigate("/", { replace: true }),
-      );
+  const handleMicrosoftSignIn = async () => {
+    setError("");
+    const trimmed = email.trim().toLowerCase();
+    if (trimmed && DEMO_EMAILS.includes(trimmed)) {
+      await signInWithMicrosoft(trimmed);
+    } else {
+      await signInWithMicrosoft();
     }
+    navigate("/", { replace: true });
   };
 
   return (
@@ -108,36 +108,6 @@ export default function SignIn() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              {/* Demo: role selector */}
-              <div className="space-y-2">
-                <Label className="text-muted-foreground text-xs">Demo: sign in as</Label>
-                <div className="flex gap-2 flex-wrap">
-                  {ROLE_OPTIONS.map((opt) => (
-                    <Button
-                      key={opt.value}
-                      type="button"
-                      variant={!useDualRole && selectedRole === opt.value ? "default" : "outline"}
-                      size="sm"
-                      className="flex-1 min-w-[90px]"
-                      onClick={() => {
-                        setUseDualRole(false);
-                        setSelectedRole(opt.value);
-                      }}
-                    >
-                      {opt.label}
-                    </Button>
-                  ))}
-                </div>
-                <Button
-                  type="button"
-                  variant={useDualRole ? "default" : "outline"}
-                  size="sm"
-                  className="w-full mt-1 text-xs"
-                  onClick={() => setUseDualRole(true)}
-                >
-                  {DUAL_ROLE_OPTION.label}
-                </Button>
-              </div>
               {/* Microsoft Entra (mock) - primary CTA */}
               <Button
                 type="button"
@@ -183,7 +153,7 @@ export default function SignIn() {
                   </TabsTrigger>
                 </TabsList>
                 <TabsContent value="signin" className="mt-4">
-                  <form onSubmit={handleDemoSignIn} className="space-y-4">
+                  <form onSubmit={handleSignIn} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
                       <div className="relative">
@@ -191,10 +161,13 @@ export default function SignIn() {
                         <Input
                           id="email"
                           type="email"
-                          placeholder="you@organization.com"
+                          placeholder="e.g. sarah.johnson@reliashealthcare.com"
                           className="pl-9"
                           value={email}
-                          onChange={(e) => setEmail(e.target.value)}
+                          onChange={(e) => {
+                            setEmail(e.target.value);
+                            setError("");
+                          }}
                         />
                       </div>
                     </div>
@@ -212,17 +185,19 @@ export default function SignIn() {
                         />
                       </div>
                     </div>
+                    {error && (
+                      <p className="text-sm text-destructive">
+                        {error}
+                      </p>
+                    )}
                     <Button
                       type="submit"
                       className="w-full bg-gradient-primary hover:opacity-90"
-                      disabled={isLoading || !email || !password}
+                      disabled={isLoading || !email.trim() || !password}
                     >
                       {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sign in"}
                     </Button>
                   </form>
-                  <p className="text-xs text-muted-foreground mt-3 text-center">
-                    Demo: any email/password signs you in as the selected role above.
-                  </p>
                 </TabsContent>
                 <TabsContent value="signup" className="mt-4">
                   <div className="rounded-lg border border-border bg-muted/30 p-4 text-center">
@@ -242,9 +217,6 @@ export default function SignIn() {
                       {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sign in with Microsoft"}
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2 text-center">
-                    Demo: use the role selector above to sign in as Provider, Coordinator, or Corporate Admin.
-                  </p>
                 </TabsContent>
               </Tabs>
             </CardContent>
