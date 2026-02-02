@@ -37,6 +37,7 @@ const ROLE_ROUTES: Record<string, Role[]> = {
   "/training": [...ALL_NON_ADMIN],
   "/assignments": [...ALL_NON_ADMIN],
   "/onboarding": [...ALL_NON_ADMIN],
+  "/roster-search": [...ALL_NON_ADMIN],
   "/settings": [...ALL_NON_ADMIN],
   "/help": [...ALL_NON_ADMIN],
   "/admin": [ROLES.CorporateAdmin, ROLES.CorporateClinician, ROLES.CorporateContributor],

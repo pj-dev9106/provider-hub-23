@@ -15,6 +15,7 @@ import TimeAttendance from "./pages/TimeAttendance";
 import Payments from "./pages/Payments";
 import Training from "./pages/Training";
 import Assignments from "./pages/Assignments";
+import RosterSearch from "./pages/RosterSearch";
 import Onboarding from "./pages/Onboarding";
 import Admin from "./pages/Admin";
 import Settings from "./pages/Settings";
@@ -107,6 +108,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Assignments />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/roster-search"
+              element={
+                <ProtectedRoute>
+                  <RosterSearch />
                 </ProtectedRoute>
               }
             />

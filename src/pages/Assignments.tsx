@@ -29,6 +29,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 
 // Mock assignments data
 const assignments = [
@@ -111,9 +118,18 @@ const statusConfig: Record<string, { label: string; className: string }> = {
   completed: { label: "Completed", className: "bg-muted text-muted-foreground border-border" },
 };
 
+type AssignmentItem = (typeof assignments)[number];
+
 export default function Assignments() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [drillInAssignment, setDrillInAssignment] = useState<AssignmentItem | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const openDrillIn = (a: AssignmentItem) => {
+    setDrillInAssignment(a);
+    setSheetOpen(true);
+  };
 
   const filtered = assignments.filter((a) => {
     const matchSearch =
@@ -246,7 +262,11 @@ export default function Assignments() {
                   </TableHeader>
                   <TableBody>
                     {filtered.map((a) => (
-                      <TableRow key={a.id} className="group">
+                      <TableRow
+                        key={a.id}
+                        className="group cursor-pointer hover:bg-muted/50"
+                        onClick={() => openDrillIn(a)}
+                      >
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <div className="p-1.5 rounded-lg bg-secondary/50">
@@ -280,7 +300,7 @@ export default function Assignments() {
                             {statusConfig[a.status]?.label ?? a.status}
                           </Badge>
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
@@ -288,7 +308,7 @@ export default function Assignments() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openDrillIn(a)}>
                                 <Calendar className="h-4 w-4 mr-2" />
                                 View details
                               </DropdownMenuItem>
@@ -312,6 +332,63 @@ export default function Assignments() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Drill-in: assignment detail sheet */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent side="right" className="sm:max-w-md">
+          {drillInAssignment && (
+            <>
+              <SheetHeader>
+                <SheetTitle>{drillInAssignment.department} — {drillInAssignment.facility}</SheetTitle>
+                <SheetDescription>Assignment details</SheetDescription>
+              </SheetHeader>
+              <div className="space-y-4 pt-4">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <MapPin className="h-4 w-4 shrink-0" />
+                  {drillInAssignment.facility}
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Department</span>
+                  <span className="text-sm font-medium">{drillInAssignment.department}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Unit</span>
+                  <span className="text-sm font-medium">{drillInAssignment.unit}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Date</span>
+                  <span className="text-sm font-medium">{drillInAssignment.date}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Time</span>
+                  <span className="text-sm font-medium">{drillInAssignment.time}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Type</span>
+                  <span className="text-sm font-medium">{drillInAssignment.type}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Status</span>
+                  <Badge variant="outline" className={statusConfig[drillInAssignment.status]?.className ?? ""}>
+                    {statusConfig[drillInAssignment.status]?.label ?? drillInAssignment.status}
+                  </Badge>
+                </div>
+                <div className="flex gap-2 pt-4">
+                  <Button variant="outline" size="sm" className="flex-1">
+                    <MapPin className="h-4 w-4 mr-2" />
+                    Directions
+                  </Button>
+                  {(drillInAssignment.status === "upcoming" || drillInAssignment.status === "pending") && (
+                    <Button variant="outline" size="sm" className="text-destructive border-destructive/30">
+                      Request release
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </AppLayout>
   );
 }
