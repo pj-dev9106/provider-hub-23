@@ -35,7 +35,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter basename="/provider-hub-23">
         <AuthProvider>
           <Routes>
             <Route path="/signin" element={<SignInRedirect />} />
