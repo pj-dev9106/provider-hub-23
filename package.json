@@ -1,5 +1,6 @@
 {
   "name": "vite_react_shadcn_ts",
+  "homepage": "https://pj-dev9106.github.io/provider-hub-23",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,7 +11,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "deploy": "gh-pages -d dist"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
