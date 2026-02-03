@@ -1,137 +1,144 @@
 /**
- * Roster search: providers credentialed at facilities.
- * For Site Coordinators to see who can work at their site (e.g. St. Mary's),
- * with Status, Facility, Association, Provider type, Work type, and contact info.
+ * Roster search: providers by site and work status.
+ * Filter by Sites (BMHC, CMC, DCH, FH, FMOLHS, HKH, MCHS, NMHS) and Work Status (FT, PT, PRN, LOC, IL).
  */
 
-export type WorkStatus = "Full Time" | "Part Time" | "PRN";
-export type FacilityAssociation = "Active" | "Benched" | "Backup";
+export const ROSTER_SITES = ["BMHC", "CMC", "DCH", "FH", "FMOLHS", "HKH", "MCHS", "NMHS"] as const;
+export type RosterSite = (typeof ROSTER_SITES)[number];
+
+export type WorkStatus = "FT" | "PT" | "PRN" | "LOC" | "IL";
+export const WORK_STATUSES: WorkStatus[] = ["FT", "PT", "PRN", "LOC", "IL"];
+
 export type ProviderType = "Physician" | "APC";
-export type WorkType = "Medical Director" | "EM Provider" | "HM Provider";
+export const PROVIDER_TYPES: ProviderType[] = ["Physician", "APC"];
+
+/** Provider record/employment status (e.g. Active, Pending) */
+export type ProviderStatus = "Active" | "Pending" | "Inactive";
+export const PROVIDER_STATUSES: ProviderStatus[] = ["Active", "Pending", "Inactive"];
 
 export interface RosterProvider {
   id: string;
   name: string;
+  preferredName?: string;
+  type: ProviderType;
+  serviceLines: string[];
+  sites: string[];
+  workStatus: WorkStatus;
   email: string;
   phone: string;
-  /** Work status: Full Time, Part Time, PRN */
-  status: WorkStatus;
-  facility: string;
-  /** Relationship to facility: Active, Benched, Backup */
-  facilityAssociation: FacilityAssociation;
-  providerType: ProviderType;
-  workType: WorkType;
-  department?: string;
+  status: ProviderStatus;
 }
-
-export const WORK_STATUSES: WorkStatus[] = ["Full Time", "Part Time", "PRN"];
-export const FACILITY_ASSOCIATIONS: FacilityAssociation[] = ["Active", "Benched", "Backup"];
-export const PROVIDER_TYPES: ProviderType[] = ["Physician", "APC"];
-export const WORK_TYPES: WorkType[] = ["Medical Director", "EM Provider", "HM Provider"];
 
 export const rosterProviders: RosterProvider[] = [
   {
     id: "p1",
     name: "Sarah Johnson",
+    preferredName: "Sarah",
+    type: "Physician",
+    serviceLines: ["EM"],
+    sites: ["NMHS", "FH"],
+    workStatus: "FT",
     email: "sarah.johnson@reliashealthcare.com",
     phone: "(555) 201-1001",
-    status: "Full Time",
-    facility: "St. Mary's Medical Center",
-    facilityAssociation: "Active",
-    providerType: "Physician",
-    workType: "EM Provider",
-    department: "Emergency",
+    status: "Active",
   },
   {
     id: "p2",
     name: "Maria Garcia",
+    preferredName: "Maria",
+    type: "APC",
+    serviceLines: ["HM"],
+    sites: ["NMHS", "MCHS"],
+    workStatus: "PT",
     email: "maria.garcia@reliashealthcare.com",
     phone: "(555) 201-1002",
-    status: "Part Time",
-    facility: "St. Mary's Medical Center",
-    facilityAssociation: "Active",
-    providerType: "APC",
-    workType: "HM Provider",
-    department: "Hospital Medicine",
+    status: "Active",
   },
   {
     id: "p3",
     name: "Alex Rivera",
+    preferredName: "Alex",
+    type: "Physician",
+    serviceLines: ["EM", "HM"],
+    sites: ["NMHS"],
+    workStatus: "FT",
     email: "alex.rivera@reliashealthcare.com",
     phone: "(555) 201-1003",
-    status: "Full Time",
-    facility: "St. Mary's Medical Center",
-    facilityAssociation: "Active",
-    providerType: "Physician",
-    workType: "Medical Director",
-    department: "ICU",
+    status: "Active",
   },
   {
     id: "p4",
     name: "Jordan Lee",
+    preferredName: "Jordan",
+    type: "APC",
+    serviceLines: ["EM"],
+    sites: ["FH", "CMC"],
+    workStatus: "PRN",
     email: "jordan.lee@reliashealthcare.com",
     phone: "(555) 201-1004",
-    status: "PRN",
-    facility: "St. Mary's Medical Center",
-    facilityAssociation: "Backup",
-    providerType: "APC",
-    workType: "EM Provider",
-    department: "Emergency",
+    status: "Active",
   },
   {
     id: "p5",
     name: "Sam Taylor",
+    preferredName: "Sam",
+    type: "Physician",
+    serviceLines: ["HM"],
+    sites: ["NMHS", "DCH"],
+    workStatus: "FT",
     email: "sam.taylor@reliashealthcare.com",
     phone: "(555) 201-1005",
-    status: "Full Time",
-    facility: "St. Mary's Medical Center",
-    facilityAssociation: "Active",
-    providerType: "Physician",
-    workType: "HM Provider",
-    department: "Hospital Medicine",
+    status: "Active",
   },
   {
     id: "p6",
     name: "Chris Chen",
+    preferredName: "Chris",
+    type: "Physician",
+    serviceLines: ["EM"],
+    sites: ["BMHC", "HKH"],
+    workStatus: "PT",
     email: "chris.chen@reliashealthcare.com",
     phone: "(555) 201-1006",
-    status: "Part Time",
-    facility: "City General Hospital",
-    facilityAssociation: "Active",
-    providerType: "Physician",
-    workType: "EM Provider",
-    department: "Emergency",
+    status: "Active",
   },
   {
     id: "p7",
     name: "Jamie Foster",
+    preferredName: "Jamie",
+    type: "APC",
+    serviceLines: ["HM"],
+    sites: ["NMHS"],
+    workStatus: "PRN",
     email: "jamie.foster@reliashealthcare.com",
     phone: "(555) 201-1007",
-    status: "PRN",
-    facility: "St. Mary's Medical Center",
-    facilityAssociation: "Benched",
-    providerType: "APC",
-    workType: "HM Provider",
-    department: "Hospital Medicine",
+    status: "Pending",
   },
   {
     id: "p8",
     name: "Morgan Wright",
+    preferredName: "Morgan",
+    type: "Physician",
+    serviceLines: ["EM"],
+    sites: ["FMOLHS", "MCHS"],
+    workStatus: "LOC",
     email: "morgan.wright@reliashealthcare.com",
     phone: "(555) 201-1008",
-    status: "Full Time",
-    facility: "Memorial Hospital",
-    facilityAssociation: "Active",
-    providerType: "Physician",
-    workType: "Medical Director",
-    department: "Emergency",
+    status: "Active",
+  },
+  {
+    id: "p9",
+    name: "Riley Davis",
+    preferredName: "Riley",
+    type: "APC",
+    serviceLines: ["EM", "HM"],
+    sites: ["HKH"],
+    workStatus: "IL",
+    email: "riley.davis@reliashealthcare.com",
+    phone: "(555) 201-1009",
+    status: "Active",
   },
 ];
-
-/** Unique facilities for filter dropdown */
-export const rosterFacilities = Array.from(
-  new Set(rosterProviders.map((p) => p.facility).sort()),
-);
 
 function matchesQuery(str: string, q: string): boolean {
   return str.toLowerCase().includes(q.toLowerCase());
@@ -139,11 +146,8 @@ function matchesQuery(str: string, q: string): boolean {
 
 export interface RosterFilters {
   query?: string;
-  status?: WorkStatus | "All";
-  facility?: string;
-  facilityAssociation?: FacilityAssociation | "All";
-  providerType?: ProviderType | "All";
-  workType?: WorkType | "All";
+  site?: string;
+  workStatus?: WorkStatus | "All";
 }
 
 export function filterRosterProviders(
@@ -157,28 +161,19 @@ export function filterRosterProviders(
     list = list.filter(
       (p) =>
         matchesQuery(p.name, q) ||
-        matchesQuery(p.facility, q) ||
+        matchesQuery(p.preferredName ?? "", q) ||
         matchesQuery(p.email, q) ||
         matchesQuery(p.phone, q) ||
-        matchesQuery(p.department ?? "", q) ||
-        matchesQuery(p.providerType, q) ||
-        matchesQuery(p.workType, q),
+        p.sites.some((s) => matchesQuery(s, q)) ||
+        p.serviceLines.some((s) => matchesQuery(s, q)) ||
+        matchesQuery(p.type, q),
     );
   }
-  if (filters.status && filters.status !== "All") {
-    list = list.filter((p) => p.status === filters.status);
+  if (filters.site) {
+    list = list.filter((p) => p.sites.includes(filters.site!));
   }
-  if (filters.facility) {
-    list = list.filter((p) => p.facility === filters.facility);
-  }
-  if (filters.facilityAssociation && filters.facilityAssociation !== "All") {
-    list = list.filter((p) => p.facilityAssociation === filters.facilityAssociation);
-  }
-  if (filters.providerType && filters.providerType !== "All") {
-    list = list.filter((p) => p.providerType === filters.providerType);
-  }
-  if (filters.workType && filters.workType !== "All") {
-    list = list.filter((p) => p.workType === filters.workType);
+  if (filters.workStatus && filters.workStatus !== "All") {
+    list = list.filter((p) => p.workStatus === filters.workStatus);
   }
   return list;
 }

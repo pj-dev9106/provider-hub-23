@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Mail, Phone, MapPin, Briefcase } from "lucide-react";
+import { Mail, Phone, MapPin } from "lucide-react";
 import type { RosterProvider } from "@/lib/rosterSearch";
 
 interface RosterSearchDrillInSheetProps {
@@ -29,43 +29,43 @@ export function RosterSearchDrillInSheet({
       <SheetContent side="right" className="sm:max-w-md">
         <SheetHeader>
           <SheetTitle>{p.name}</SheetTitle>
-          <SheetDescription>Provider details — credentialed at this facility</SheetDescription>
+          <SheetDescription>
+            {p.preferredName && `Preferred name: ${p.preferredName}. `}
+            Provider details
+          </SheetDescription>
         </SheetHeader>
         <div className="space-y-4 pt-4">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Status</span>
-            <Badge variant="secondary">{p.status}</Badge>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Facility</span>
-            <span className="text-sm font-medium flex items-center gap-1.5">
-              <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
-              {p.facility}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Association</span>
-            <Badge variant={p.facilityAssociation === "Active" ? "default" : "secondary"}>
-              {p.facilityAssociation}
-            </Badge>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Provider type</span>
-            <span className="text-sm font-medium">{p.providerType}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Work type</span>
-            <span className="text-sm font-medium flex items-center gap-1.5">
-              <Briefcase className="h-4 w-4 shrink-0 text-muted-foreground" />
-              {p.workType}
-            </span>
-          </div>
-          {p.department && (
+          {p.preferredName && (
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Department</span>
-              <span className="text-sm font-medium">{p.department}</span>
+              <span className="text-sm text-muted-foreground">Preferred Name</span>
+              <span className="text-sm font-medium">{p.preferredName}</span>
             </div>
           )}
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Type</span>
+            <span className="text-sm font-medium">{p.type}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Service Lines</span>
+            <span className="text-sm font-medium">{p.serviceLines.join(", ")}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Sites</span>
+            <span className="text-sm font-medium flex items-center gap-1.5">
+              <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
+              {p.sites.join(", ")}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Work Status</span>
+            <Badge variant="secondary">{p.workStatus}</Badge>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Status</span>
+            <Badge variant={p.status === "Active" ? "default" : p.status === "Pending" ? "secondary" : "outline"}>
+              {p.status}
+            </Badge>
+          </div>
           <div className="pt-2 border-t space-y-3">
             <p className="text-xs font-medium text-muted-foreground">Contact</p>
             <a

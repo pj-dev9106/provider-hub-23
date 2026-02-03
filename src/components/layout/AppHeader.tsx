@@ -95,7 +95,7 @@ export function AppHeader() {
                           <div className="min-w-0">
                             <p className="text-sm font-medium truncate">{provider.name}</p>
                             <p className="text-xs text-muted-foreground truncate">
-                              {provider.facility} · {provider.status}
+                              {provider.sites.join(", ")} · {provider.workStatus}
                             </p>
                           </div>
                         </div>
