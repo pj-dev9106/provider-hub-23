@@ -1,153 +1,246 @@
 import { useState, useMemo } from "react";
-import { Search, Users, Calendar, ClipboardList, ChevronRight } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Search, ChevronRight, Mail, Phone } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { RosterSearchDrillInSheet } from "@/components/RosterSearchDrillInSheet";
-import { filterRoster, type RosterItem, type RosterItemType } from "@/lib/rosterSearch";
-import { cn } from "@/lib/utils";
-
-const TYPE_OPTIONS: { value: RosterItemType; label: string }[] = [
-  { value: "provider", label: "Providers" },
-  { value: "shift", label: "Shifts" },
-  { value: "assignment", label: "Assignments" },
-];
+import {
+  rosterProviders,
+  filterRosterProviders,
+  rosterFacilities,
+  WORK_STATUSES,
+  FACILITY_ASSOCIATIONS,
+  PROVIDER_TYPES,
+  WORK_TYPES,
+  type RosterProvider,
+  type WorkStatus,
+} from "@/lib/rosterSearch";
 
 export default function RosterSearch() {
   const [query, setQuery] = useState("");
-  const [selectedTypes, setSelectedTypes] = useState<RosterItemType[]>([]);
-  const [drillInItem, setDrillInItem] = useState<RosterItem | null>(null);
+  const [statusTab, setStatusTab] = useState<WorkStatus | "All">("All");
+  const [facility, setFacility] = useState<string>("");
+  const [association, setAssociation] = useState<string>("All");
+  const [providerType, setProviderType] = useState<string>("All");
+  const [workType, setWorkType] = useState<string>("All");
+  const [drillInProvider, setDrillInProvider] = useState<RosterProvider | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const results = useMemo(() => filterRoster(query, selectedTypes), [query, selectedTypes]);
+  const results = useMemo(
+    () =>
+      filterRosterProviders(rosterProviders, {
+        query: query || undefined,
+        status: statusTab,
+        facility: facility || undefined,
+        facilityAssociation: association === "All" ? undefined : (association as import("@/lib/rosterSearch").FacilityAssociation),
+        providerType: providerType === "All" ? undefined : (providerType as import("@/lib/rosterSearch").ProviderType),
+        workType: workType === "All" ? undefined : (workType as import("@/lib/rosterSearch").WorkType),
+      }),
+    [query, statusTab, facility, association, providerType, workType],
+  );
 
-  const toggleType = (t: RosterItemType) => {
-    setSelectedTypes((prev) =>
-      prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t],
-    );
-  };
-
-  const handleDrillIn = (item: RosterItem) => {
-    setDrillInItem(item);
+  const handleRowClick = (provider: RosterProvider) => {
+    setDrillInProvider(provider);
     setSheetOpen(true);
   };
-
-  const drillInData = drillInItem
-    ? { itemType: drillInItem.type, item: drillInItem.data }
-    : { itemType: null as RosterItemType | null, item: null };
 
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Roster Search</h1>
+          <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Roster</h1>
           <p className="text-muted-foreground mt-1">
-            Search providers, shifts, and assignments — click a result to drill in. Use badges to filter by type, or leave unselected for all.
+            View providers credentialed at your facility. Filter by status, facility, association, provider type, and work type.
           </p>
         </div>
 
         <Card>
           <CardHeader className="pb-4">
-            <CardTitle className="text-lg">Search</CardTitle>
+            <CardTitle className="text-lg">Filters</CardTitle>
             <CardDescription>
-              Type to search; optionally filter by type with the badges below.
+              Site coordinators can see who is credentialed to work at their site, work status, and contact info.
             </CardDescription>
+
             <div className="relative mt-4 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name, facility, department..."
+                placeholder="Search by name, email, facility, department..."
                 className="pl-10"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
             </div>
-            <div className="flex flex-wrap gap-2 mt-4">
-              {TYPE_OPTIONS.map((opt) => (
-                <Badge
-                  key={opt.value}
-                  variant={selectedTypes.includes(opt.value) ? "default" : "outline"}
-                  className={cn(
-                    "cursor-pointer text-sm py-1.5 px-3",
-                    !selectedTypes.includes(opt.value) && "opacity-80 hover:opacity-100",
-                  )}
-                  onClick={() => toggleType(opt.value)}
+
+            <div className="mt-4 space-y-4">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-2">Status</p>
+                <Tabs
+                  value={statusTab}
+                  onValueChange={(v) => setStatusTab(v as WorkStatus | "All")}
+                  className="w-full"
                 >
-                  {opt.label}
-                </Badge>
-              ))}
-              {selectedTypes.length > 0 && (
-                <Badge
-                  variant="ghost"
-                  className="cursor-pointer text-sm text-muted-foreground hover:text-foreground"
-                  onClick={() => setSelectedTypes([])}
-                >
-                  Clear filters
-                </Badge>
-              )}
+                  <TabsList className="flex flex-wrap h-auto gap-1 p-1">
+                    <TabsTrigger value="All" className="flex-1 min-w-[4rem]">All</TabsTrigger>
+                    {WORK_STATUSES.map((s) => (
+                      <TabsTrigger key={s} value={s} className="flex-1 min-w-[4rem]">
+                        {s}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </Tabs>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Facility</p>
+                  <Select value={facility || "all"} onValueChange={(v) => setFacility(v === "all" ? "" : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All facilities" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All facilities</SelectItem>
+                      {rosterFacilities.map((f) => (
+                        <SelectItem key={f} value={f}>
+                          {f}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Association</p>
+                  <Select value={association} onValueChange={setAssociation}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="All">All</SelectItem>
+                      {FACILITY_ASSOCIATIONS.map((a) => (
+                        <SelectItem key={a} value={a}>
+                          {a}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Provider type</p>
+                  <Select value={providerType} onValueChange={setProviderType}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="All">All</SelectItem>
+                      {PROVIDER_TYPES.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {t}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Work type</p>
+                  <Select value={workType} onValueChange={setWorkType}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="All">All</SelectItem>
+                      {WORK_TYPES.map((w) => (
+                        <SelectItem key={w} value={w}>
+                          {w}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              {selectedTypes.length === 0
-                ? "Showing all types (Providers, Shifts, Assignments)"
-                : `Filtering: ${selectedTypes.map((t) => TYPE_OPTIONS.find((o) => o.value === t)?.label).join(", ")}`}
-            </p>
           </CardHeader>
           <CardContent>
             {results.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-12 text-center">No results found</p>
+              <p className="text-sm text-muted-foreground py-12 text-center">No providers match the current filters.</p>
             ) : (
-              <div className="space-y-2">
-                {results.map((row) => (
-                  <div
-                    key={`${row.type}-${row.data.id}`}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => handleDrillIn(row)}
-                    onKeyDown={(e) => e.key === "Enter" && handleDrillIn(row)}
-                    className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-secondary/50 cursor-pointer transition-colors group"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {row.type === "provider" && (
-                        <>
-                          <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
-                            <Users className="h-4 w-4" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-medium text-foreground">{(row.data as { name: string }).name}</p>
-                            <p className="text-sm text-muted-foreground">{(row.data as { role: string }).role} · {(row.data as { department: string }).department} · {(row.data as { facility: string }).facility}</p>
-                          </div>
-                        </>
-                      )}
-                      {row.type === "shift" && (
-                        <>
-                          <div className="p-2 rounded-lg bg-info/10 text-info shrink-0">
-                            <Calendar className="h-4 w-4" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-medium text-foreground">{(row.data as { department: string }).department} — {(row.data as { facility: string }).facility}</p>
-                            <p className="text-sm text-muted-foreground">{(row.data as { date: string }).date} · {(row.data as { time: string }).time} · {(row.data as { unit: string }).unit}</p>
-                          </div>
-                        </>
-                      )}
-                      {row.type === "assignment" && (
-                        <>
-                          <div className="p-2 rounded-lg bg-accent/10 text-accent shrink-0">
-                            <ClipboardList className="h-4 w-4" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-medium text-foreground">{(row.data as { providerName: string }).providerName} — {(row.data as { department: string }).department}</p>
-                            <p className="text-sm text-muted-foreground">{(row.data as { facility: string }).facility} · {(row.data as { date: string }).date} · {(row.data as { time: string }).time}</p>
-                          </div>
-                        </>
-                      )}
-                      <Badge variant="secondary" className="shrink-0 capitalize">
-                        {row.type}
-                      </Badge>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground shrink-0" />
-                  </div>
-                ))}
-              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Facility</TableHead>
+                    <TableHead>Association</TableHead>
+                    <TableHead>Provider type</TableHead>
+                    <TableHead>Work type</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead className="w-8" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {results.map((provider) => (
+                    <TableRow
+                      key={provider.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleRowClick(provider)}
+                      onKeyDown={(e) => e.key === "Enter" && handleRowClick(provider)}
+                      className="cursor-pointer"
+                    >
+                      <TableCell className="font-medium">{provider.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{provider.status}</Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{provider.facility}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            provider.facilityAssociation === "Active"
+                              ? "default"
+                              : provider.facilityAssociation === "Backup"
+                                ? "secondary"
+                                : "outline"
+                          }
+                        >
+                          {provider.facilityAssociation}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{provider.providerType}</TableCell>
+                      <TableCell>{provider.workType}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-0.5 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1.5">
+                            <Mail className="h-3.5 w-3.5 shrink-0" />
+                            {provider.email}
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <Phone className="h-3.5 w-3.5 shrink-0" />
+                            {provider.phone}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             )}
           </CardContent>
         </Card>
@@ -156,8 +249,7 @@ export default function RosterSearch() {
       <RosterSearchDrillInSheet
         open={sheetOpen}
         onOpenChange={setSheetOpen}
-        itemType={drillInData.itemType}
-        item={drillInData.item}
+        provider={drillInProvider}
       />
     </AppLayout>
   );

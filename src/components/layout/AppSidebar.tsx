@@ -52,7 +52,7 @@ const mainNavItems: { title: string; url: string; icon: typeof LayoutDashboard; 
 ];
 
 const secondaryNavItems: { title: string; url: string; icon: typeof Clock }[] = [
-  { title: "Roster Search", url: "/roster-search", icon: Search },
+  { title: "Roster", url: "/roster-search", icon: Search },
   { title: "Time & Attendance", url: "/time", icon: Clock },
   { title: "Payments", url: "/payments", icon: DollarSign },
   { title: "Training", url: "/training", icon: GraduationCap },

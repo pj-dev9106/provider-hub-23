@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { Bell, Search, LogOut, UserCircle, ChevronDown, Users, Calendar, ClipboardList, ChevronRight } from "lucide-react";
+import { Bell, Search, LogOut, UserCircle, ChevronDown, Users, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -15,15 +15,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { filterRoster, type RosterItem, type RosterItemType } from "@/lib/rosterSearch";
+import { filterRosterProviders, rosterProviders, type RosterProvider } from "@/lib/rosterSearch";
 import { RosterSearchDrillInSheet } from "@/components/RosterSearchDrillInSheet";
-import { cn } from "@/lib/utils";
-
-const TYPE_OPTIONS: { value: RosterItemType; label: string }[] = [
-  { value: "provider", label: "Providers" },
-  { value: "shift", label: "Shifts" },
-  { value: "assignment", label: "Assignments" },
-];
 
 export function AppHeader() {
   const { user, activeRole, setActiveRole, signOut } = useAuth();
@@ -32,30 +25,19 @@ export function AppHeader() {
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchTypes, setSearchTypes] = useState<RosterItemType[]>([]);
-  const [drillInItem, setDrillInItem] = useState<RosterItem | null>(null);
+  const [drillInProvider, setDrillInProvider] = useState<RosterProvider | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const rosterResults = useMemo(
-    () => filterRoster(searchQuery, searchTypes),
-    [searchQuery, searchTypes],
+    () => filterRosterProviders(rosterProviders, { query: searchQuery || undefined }),
+    [searchQuery],
   );
 
-  const toggleSearchType = (t: RosterItemType) => {
-    setSearchTypes((prev) =>
-      prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t],
-    );
-  };
-
-  const handleDrillIn = (item: RosterItem) => {
-    setDrillInItem(item);
+  const handleDrillIn = (provider: RosterProvider) => {
+    setDrillInProvider(provider);
     setSearchOpen(false);
     setSheetOpen(true);
   };
-
-  const drillInData = drillInItem
-    ? { itemType: drillInItem.type, item: drillInItem.data }
-    : { itemType: null as RosterItemType | null, item: null };
 
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
@@ -95,80 +77,27 @@ export function AppHeader() {
             />
             {searchOpen && (
               <div className="absolute top-full left-0 mt-1 w-full min-w-[16rem] max-h-[360px] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md z-50 flex flex-col">
-                <div className="p-2 border-b bg-muted/30">
-                  <p className="text-xs font-medium text-muted-foreground mb-2">Filter by type (optional)</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {TYPE_OPTIONS.map((opt) => (
-                      <Badge
-                        key={opt.value}
-                        variant={searchTypes.includes(opt.value) ? "default" : "outline"}
-                        className={cn(
-                          "cursor-pointer text-xs",
-                          !searchTypes.includes(opt.value) && "opacity-70",
-                        )}
-                        onClick={() => toggleSearchType(opt.value)}
-                      >
-                        {opt.label}
-                      </Badge>
-                    ))}
-                    {searchTypes.length > 0 && (
-                      <Badge
-                        variant="ghost"
-                        className="cursor-pointer text-xs text-muted-foreground"
-                        onClick={() => setSearchTypes([])}
-                      >
-                        Clear
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-1.5">
-                    {searchTypes.length === 0 ? "Showing all types" : searchTypes.map((t) => TYPE_OPTIONS.find((o) => o.value === t)?.label).join(", ")}
-                  </p>
-                </div>
-                <div className="max-h-[280px] overflow-auto p-1">
+                <div className="max-h-[300px] overflow-auto p-1">
                   {rosterResults.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-6 text-center">No results</p>
+                    <p className="text-sm text-muted-foreground py-6 text-center">No providers found</p>
                   ) : (
-                    rosterResults.slice(0, 12).map((row) => (
+                    rosterResults.slice(0, 12).map((provider) => (
                       <div
-                        key={`${row.type}-${row.data.id}`}
+                        key={provider.id}
                         role="button"
                         tabIndex={0}
-                        onClick={() => handleDrillIn(row)}
-                        onKeyDown={(e) => e.key === "Enter" && handleDrillIn(row)}
+                        onClick={() => handleDrillIn(provider)}
+                        onKeyDown={(e) => e.key === "Enter" && handleDrillIn(provider)}
                         className="flex items-center justify-between gap-2 p-2 rounded-md hover:bg-secondary/80 cursor-pointer group text-left"
                       >
                         <div className="flex items-center gap-2 min-w-0">
-                          {row.type === "provider" && (
-                            <>
-                              <Users className="h-4 w-4 text-primary shrink-0" />
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium truncate">{(row.data as { name: string }).name}</p>
-                                <p className="text-xs text-muted-foreground truncate">{(row.data as { department: string }).department} · {(row.data as { facility: string }).facility}</p>
-                              </div>
-                            </>
-                          )}
-                          {row.type === "shift" && (
-                            <>
-                              <Calendar className="h-4 w-4 text-info shrink-0" />
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium truncate">{(row.data as { department: string }).department} — {(row.data as { facility: string }).facility}</p>
-                                <p className="text-xs text-muted-foreground truncate">{(row.data as { date: string }).date} · {(row.data as { time: string }).time}</p>
-                              </div>
-                            </>
-                          )}
-                          {row.type === "assignment" && (
-                            <>
-                              <ClipboardList className="h-4 w-4 text-accent shrink-0" />
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium truncate">{(row.data as { providerName: string }).providerName} — {(row.data as { department: string }).department}</p>
-                                <p className="text-xs text-muted-foreground truncate">{(row.data as { facility: string }).facility}</p>
-                              </div>
-                            </>
-                          )}
-                          <Badge variant="secondary" className="text-[10px] shrink-0 capitalize">
-                            {row.type}
-                          </Badge>
+                          <Users className="h-4 w-4 text-primary shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">{provider.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {provider.facility} · {provider.status}
+                            </p>
+                          </div>
                         </div>
                         <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                       </div>
@@ -185,7 +114,7 @@ export function AppHeader() {
                       navigate("/roster-search");
                     }}
                   >
-                    View all results →
+                    View full roster →
                   </Button>
                 </div>
               </div>
@@ -195,8 +124,7 @@ export function AppHeader() {
           <RosterSearchDrillInSheet
             open={sheetOpen}
             onOpenChange={setSheetOpen}
-            itemType={drillInData.itemType}
-            item={drillInData.item}
+            provider={drillInProvider}
           />
         </div>
 
