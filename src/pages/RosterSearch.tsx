@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import {
   Search,
   ChevronRight,
@@ -22,6 +22,9 @@ import {
   ClipboardList,
   UserPlus,
   Pencil,
+  ChevronDown,
+  Rows3,
+  ListTree,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -46,12 +49,14 @@ import { Button } from "@/components/ui/button";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { RosterSearchDrillInSheet } from "@/components/RosterSearchDrillInSheet";
 import {
-  rosterProviders,
-  filterRosterProviders,
+  getRosterRows,
+  filterRosterRows,
   ROSTER_SITES,
   WORK_STATUSES,
-  type RosterProvider,
+  RELATIONSHIP_STATUSES,
+  type RosterRow,
   type WorkStatus,
+  type RelationshipStatus,
 } from "@/lib/rosterSearch";
 
 // Mock data for Portal sections
@@ -100,23 +105,68 @@ export default function RosterSearch() {
   const [query, setQuery] = useState("");
   const [siteFilter, setSiteFilter] = useState<string>("");
   const [workStatusFilter, setWorkStatusFilter] = useState<WorkStatus | "All">("All");
-  const [drillInProvider, setDrillInProvider] = useState<RosterProvider | null>(null);
+  const [statusFilter, setStatusFilter] = useState<RelationshipStatus | "All">("All");
+  const [drillInRow, setDrillInRow] = useState<RosterRow | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  /** "flat" = one row per relationship; "grouped" = one row per provider, expand to see sites */
+  const [viewMode, setViewMode] = useState<"flat" | "grouped">("flat");
+  const [expandedProviderIds, setExpandedProviderIds] = useState<Set<string>>(new Set());
 
+  const allRows = useMemo(() => getRosterRows(), []);
   const results = useMemo(
     () =>
-      filterRosterProviders(rosterProviders, {
+      filterRosterRows(allRows, {
         query: query || undefined,
         site: siteFilter || undefined,
         workStatus: workStatusFilter,
+        status: statusFilter,
       }),
-    [query, siteFilter, workStatusFilter],
+    [allRows, query, siteFilter, workStatusFilter, statusFilter],
   );
 
-  const handleRowClick = (provider: RosterProvider) => {
-    setDrillInProvider(provider);
+  const handleRowClick = (row: RosterRow) => {
+    setDrillInRow(row);
     setSheetOpen(true);
   };
+
+  /** Group filtered results by provider (for expandable view) */
+  const groupedByProvider = useMemo(() => {
+    const map = new Map<string, RosterRow[]>();
+    results.forEach((row) => {
+      const list = map.get(row.provider.id) ?? [];
+      list.push(row);
+      map.set(row.provider.id, list);
+    });
+    return Array.from(map.entries()).map(([, rows]) => ({
+      provider: rows[0].provider,
+      rows,
+    }));
+  }, [results]);
+
+  const toggleExpanded = (providerId: string) => {
+    setExpandedProviderIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(providerId)) next.delete(providerId);
+      else next.add(providerId);
+      return next;
+    });
+  };
+
+  const handleFilterBySite = (e: React.MouseEvent, site: string) => {
+    e.stopPropagation();
+    setSiteFilter(site);
+  };
+  const handleFilterByWorkStatus = (e: React.MouseEvent, workStatus: WorkStatus) => {
+    e.stopPropagation();
+    setWorkStatusFilter(workStatus);
+  };
+  const handleFilterByStatus = (e: React.MouseEvent, status: RelationshipStatus) => {
+    e.stopPropagation();
+    setStatusFilter(status);
+  };
+
+  const filterableCellClass = "cursor-pointer hover:underline hover:text-primary select-none";
+  const filterableTitle = "Click to filter by this value";
 
   return (
     <AppLayout>
@@ -154,7 +204,7 @@ export default function RosterSearch() {
                   Search
                 </CardTitle>
                 <CardDescription>
-                  Find providers by site and work status. Filter by Sites and Work Status below.
+                  One row per provider–site relationship. Status and Work Status apply to the relationship. Filter by Site, Work Status, and Status (Active/Benched/Pending).
                 </CardDescription>
                 <div className="relative mt-4 max-w-md">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -178,6 +228,18 @@ export default function RosterSearch() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="min-w-[140px]">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Status</p>
+                    <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as RelationshipStatus | "All")}>
+                      <SelectTrigger><SelectValue placeholder="All statuses" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="All">All</SelectItem>
+                        {RELATIONSHIP_STATUSES.map((s) => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div>
                     <p className="text-xs font-medium text-muted-foreground mb-2">Work Status</p>
                     <Tabs value={workStatusFilter} onValueChange={(v) => setWorkStatusFilter(v as WorkStatus | "All")} className="w-full">
@@ -192,55 +254,181 @@ export default function RosterSearch() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="flex justify-end mb-4">
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">View:</span>
+                    <Button
+                      variant={viewMode === "flat" ? "secondary" : "ghost"}
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => setViewMode("flat")}
+                    >
+                      <ListTree className="h-4 w-4" />
+                      One row per relationship
+                    </Button>
+                    <Button
+                      variant={viewMode === "grouped" ? "secondary" : "ghost"}
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => setViewMode("grouped")}
+                    >
+                      <Rows3 className="h-4 w-4" />
+                      Group by provider (expand)
+                    </Button>
+                  </div>
                   <Button className="gap-2">
                     <UserPlus className="h-4 w-4" />
                     Add to Roster
                   </Button>
                 </div>
                 {results.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-12 text-center">No providers match the current filters.</p>
+                  <p className="text-sm text-muted-foreground py-12 text-center">No relationships match the current filters.</p>
+                ) : viewMode === "grouped" ? (
+                  <>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      One row per provider. Expand to see site relationships; <strong className="text-foreground">Status</strong> and <strong className="text-foreground">Work Status</strong> are per relationship.
+                    </p>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-10" />
+                          <TableHead>Provider Name</TableHead>
+                          <TableHead>Preferred Name</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Service Lines</TableHead>
+                          <TableHead>Site</TableHead>
+                          <TableHead>Work Status</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Phone</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="w-16 text-right">Edit</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {groupedByProvider.map(({ provider, rows }) => {
+                          const isExpanded = expandedProviderIds.has(provider.id);
+                          const firstRow = rows[0];
+                          return (
+                            <Fragment key={provider.id}>
+                              <TableRow
+                                key={provider.id}
+                                className="cursor-pointer hover:bg-muted/50"
+                              >
+                                <TableCell className="w-10 p-1" onClick={(e) => { e.stopPropagation(); toggleExpanded(provider.id); }}>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                  </Button>
+                                </TableCell>
+                                <TableCell className="font-medium" onClick={() => handleRowClick(firstRow)}>{provider.name}</TableCell>
+                                <TableCell className="text-muted-foreground" onClick={() => handleRowClick(firstRow)}>{provider.preferredName ?? "—"}</TableCell>
+                                <TableCell onClick={() => handleRowClick(firstRow)}>{provider.type}</TableCell>
+                                <TableCell onClick={() => handleRowClick(firstRow)}>{provider.serviceLines.join(", ")}</TableCell>
+                                <TableCell className="text-muted-foreground" onClick={() => handleRowClick(firstRow)}>
+                                  {rows.length} site{rows.length !== 1 ? "s" : ""}
+                                </TableCell>
+                                <TableCell onClick={() => handleRowClick(firstRow)}>—</TableCell>
+                                <TableCell className="text-muted-foreground text-sm" onClick={() => handleRowClick(firstRow)}>{provider.email}</TableCell>
+                                <TableCell className="text-muted-foreground text-sm" onClick={() => handleRowClick(firstRow)}>{provider.phone}</TableCell>
+                                <TableCell onClick={() => handleRowClick(firstRow)}>—</TableCell>
+                                <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Edit provider">
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                              {isExpanded && rows.map((row) => (
+                                <TableRow
+                                  key={`${row.provider.id}-${row.relationship.site}`}
+                                  className="bg-muted/30 hover:bg-muted/50 cursor-pointer"
+                                  onClick={() => handleRowClick(row)}
+                                >
+                                  <TableCell className="w-10 p-1" />
+                                  <TableCell className="pl-8 text-muted-foreground font-normal">—</TableCell>
+                                  <TableCell />
+                                  <TableCell />
+                                  <TableCell className="font-medium">
+                                    <span role="button" tabIndex={0} title={filterableTitle} onClick={(e) => handleFilterBySite(e, row.relationship.site)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); setSiteFilter(row.relationship.site); } }} className={filterableCellClass}>
+                                      {row.relationship.site}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="secondary" role="button" tabIndex={0} title={filterableTitle} className={filterableCellClass} onClick={(e) => handleFilterByWorkStatus(e, row.relationship.workStatus)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); setWorkStatusFilter(row.relationship.workStatus); } }}>
+                                      {row.relationship.workStatus}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-muted-foreground text-sm">{provider.email}</TableCell>
+                                  <TableCell className="text-muted-foreground text-sm">{provider.phone}</TableCell>
+                                  <TableCell>
+                                    <Badge variant={row.relationship.status === "Active" ? "default" : row.relationship.status === "Pending" ? "secondary" : "outline"} role="button" tabIndex={0} title={filterableTitle} className={filterableCellClass} onClick={(e) => handleFilterByStatus(e, row.relationship.status)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); setStatusFilter(row.relationship.status); } }}>
+                                      {row.relationship.status}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Edit relationship">
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </Fragment>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </>
                 ) : (
-                  <Table>
+                  <>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Each row is one provider–hospital relationship. <strong className="text-foreground">Status</strong> and <strong className="text-foreground">Work Status</strong> apply to that relationship (e.g. Active at one site, Pending at another).
+                    </p>
+                    <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Provider Name</TableHead>
                         <TableHead>Preferred Name</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>Service Lines</TableHead>
-                        <TableHead>Sites</TableHead>
-                        <TableHead>Work Status</TableHead>
+                        <TableHead>Site</TableHead>
+                        <TableHead title="Per provider–hospital relationship">Work Status</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>Phone</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead title="Per provider–hospital relationship">Status</TableHead>
                         <TableHead className="w-16 text-right">Edit</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {results.map((provider) => (
+                      {results.map((row) => (
                         <TableRow
-                          key={provider.id}
+                          key={`${row.provider.id}-${row.relationship.site}`}
                           role="button"
                           tabIndex={0}
-                          onClick={() => handleRowClick(provider)}
-                          onKeyDown={(e) => e.key === "Enter" && handleRowClick(provider)}
+                          onClick={() => handleRowClick(row)}
+                          onKeyDown={(e) => e.key === "Enter" && handleRowClick(row)}
                           className="cursor-pointer"
                         >
-                          <TableCell className="font-medium">{provider.name}</TableCell>
-                          <TableCell className="text-muted-foreground">{provider.preferredName ?? "—"}</TableCell>
-                          <TableCell>{provider.type}</TableCell>
-                          <TableCell>{provider.serviceLines.join(", ")}</TableCell>
-                          <TableCell>{provider.sites.join(", ")}</TableCell>
-                          <TableCell><Badge variant="secondary">{provider.workStatus}</Badge></TableCell>
-                          <TableCell className="text-muted-foreground text-sm">{provider.email}</TableCell>
-                          <TableCell className="text-muted-foreground text-sm">{provider.phone}</TableCell>
+                          <TableCell className="font-medium">{row.provider.name}</TableCell>
+                          <TableCell className="text-muted-foreground">{row.provider.preferredName ?? "—"}</TableCell>
+                          <TableCell>{row.provider.type}</TableCell>
+                          <TableCell>{row.provider.serviceLines.join(", ")}</TableCell>
                           <TableCell>
-                            <Badge variant={provider.status === "Active" ? "default" : provider.status === "Pending" ? "secondary" : "outline"}>
-                              {provider.status}
+                            <span role="button" tabIndex={0} title={filterableTitle} onClick={(e) => handleFilterBySite(e, row.relationship.site)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); setSiteFilter(row.relationship.site); } }} className={filterableCellClass}>
+                              {row.relationship.site}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" role="button" tabIndex={0} title={filterableTitle} className={filterableCellClass} onClick={(e) => handleFilterByWorkStatus(e, row.relationship.workStatus)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); setWorkStatusFilter(row.relationship.workStatus); } }}>
+                              {row.relationship.workStatus}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm">{row.provider.email}</TableCell>
+                          <TableCell className="text-muted-foreground text-sm">{row.provider.phone}</TableCell>
+                          <TableCell>
+                            <Badge variant={row.relationship.status === "Active" ? "default" : row.relationship.status === "Pending" ? "secondary" : "outline"} role="button" tabIndex={0} title={filterableTitle} className={filterableCellClass} onClick={(e) => handleFilterByStatus(e, row.relationship.status)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); setStatusFilter(row.relationship.status); } }}>
+                              {row.relationship.status}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Edit provider">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Edit relationship">
                               <Pencil className="h-4 w-4" />
                             </Button>
                           </TableCell>
@@ -248,6 +436,7 @@ export default function RosterSearch() {
                       ))}
                     </TableBody>
                   </Table>
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -611,7 +800,7 @@ export default function RosterSearch() {
       <RosterSearchDrillInSheet
         open={sheetOpen}
         onOpenChange={setSheetOpen}
-        provider={drillInProvider}
+        row={drillInRow}
       />
     </AppLayout>
   );

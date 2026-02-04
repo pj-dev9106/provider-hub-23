@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { filterRosterProviders, rosterProviders, type RosterProvider } from "@/lib/rosterSearch";
+import { getRosterRows, filterRosterRows, type RosterRow } from "@/lib/rosterSearch";
 import { RosterSearchDrillInSheet } from "@/components/RosterSearchDrillInSheet";
 
 export function AppHeader() {
@@ -25,16 +25,17 @@ export function AppHeader() {
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [drillInProvider, setDrillInProvider] = useState<RosterProvider | null>(null);
+  const [drillInRow, setDrillInRow] = useState<RosterRow | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
+  const allRows = useMemo(() => getRosterRows(), []);
   const rosterResults = useMemo(
-    () => filterRosterProviders(rosterProviders, { query: searchQuery || undefined }),
-    [searchQuery],
+    () => filterRosterRows(allRows, { query: searchQuery || undefined }),
+    [allRows, searchQuery],
   );
 
-  const handleDrillIn = (provider: RosterProvider) => {
-    setDrillInProvider(provider);
+  const handleDrillIn = (row: RosterRow) => {
+    setDrillInRow(row);
     setSearchOpen(false);
     setSheetOpen(true);
   };
@@ -79,23 +80,23 @@ export function AppHeader() {
               <div className="absolute top-full left-0 mt-1 w-full min-w-[16rem] max-h-[360px] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md z-50 flex flex-col">
                 <div className="max-h-[300px] overflow-auto p-1">
                   {rosterResults.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-6 text-center">No providers found</p>
+                    <p className="text-sm text-muted-foreground py-6 text-center">No results found</p>
                   ) : (
-                    rosterResults.slice(0, 12).map((provider) => (
+                    rosterResults.slice(0, 12).map((row) => (
                       <div
-                        key={provider.id}
+                        key={`${row.provider.id}-${row.relationship.site}`}
                         role="button"
                         tabIndex={0}
-                        onClick={() => handleDrillIn(provider)}
-                        onKeyDown={(e) => e.key === "Enter" && handleDrillIn(provider)}
+                        onClick={() => handleDrillIn(row)}
+                        onKeyDown={(e) => e.key === "Enter" && handleDrillIn(row)}
                         className="flex items-center justify-between gap-2 p-2 rounded-md hover:bg-secondary/80 cursor-pointer group text-left"
                       >
                         <div className="flex items-center gap-2 min-w-0">
                           <Users className="h-4 w-4 text-primary shrink-0" />
                           <div className="min-w-0">
-                            <p className="text-sm font-medium truncate">{provider.name}</p>
+                            <p className="text-sm font-medium truncate">{row.provider.name}</p>
                             <p className="text-xs text-muted-foreground truncate">
-                              {provider.sites.join(", ")} · {provider.workStatus}
+                              {row.relationship.site} · {row.relationship.workStatus} · {row.relationship.status}
                             </p>
                           </div>
                         </div>
@@ -124,7 +125,7 @@ export function AppHeader() {
           <RosterSearchDrillInSheet
             open={sheetOpen}
             onOpenChange={setSheetOpen}
-            provider={drillInProvider}
+            row={drillInRow}
           />
         </div>
 

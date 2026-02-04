@@ -8,22 +8,35 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Mail, Phone, MapPin } from "lucide-react";
-import type { RosterProvider } from "@/lib/rosterSearch";
+import {
+  getRelationshipsForProvider,
+  type RosterRow,
+} from "@/lib/rosterSearch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface RosterSearchDrillInSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  provider: RosterProvider | null;
+  row: RosterRow | null;
 }
 
 export function RosterSearchDrillInSheet({
   open,
   onOpenChange,
-  provider,
+  row,
 }: RosterSearchDrillInSheetProps) {
-  if (!provider) return null;
+  if (!row) return null;
 
-  const p = provider;
+  const p = row.provider;
+  const relationships = getRelationshipsForProvider(p.id);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="sm:max-w-md">
@@ -31,7 +44,7 @@ export function RosterSearchDrillInSheet({
           <SheetTitle>{p.name}</SheetTitle>
           <SheetDescription>
             {p.preferredName && `Preferred name: ${p.preferredName}. `}
-            Provider details
+            Provider details — Status and Work Status per site below.
           </SheetDescription>
         </SheetHeader>
         <div className="space-y-4 pt-4">
@@ -49,23 +62,47 @@ export function RosterSearchDrillInSheet({
             <span className="text-sm text-muted-foreground">Service Lines</span>
             <span className="text-sm font-medium">{p.serviceLines.join(", ")}</span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Sites</span>
-            <span className="text-sm font-medium flex items-center gap-1.5">
-              <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
-              {p.sites.join(", ")}
-            </span>
+
+          <div className="pt-2 border-t">
+            <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+              <MapPin className="h-3.5 w-3.5" />
+              Site relationships (Active / Benched / Pending)
+            </p>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="h-8">Site</TableHead>
+                  <TableHead className="h-8">Work Status</TableHead>
+                  <TableHead className="h-8">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {relationships.map((rel) => (
+                  <TableRow key={rel.site}>
+                    <TableCell className="py-2 font-medium">{rel.site}</TableCell>
+                    <TableCell className="py-2">
+                      <Badge variant="secondary" className="text-xs">{rel.workStatus}</Badge>
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <Badge
+                        variant={
+                          rel.status === "Active"
+                            ? "default"
+                            : rel.status === "Pending"
+                              ? "secondary"
+                              : "outline"
+                        }
+                        className="text-xs"
+                      >
+                        {rel.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Work Status</span>
-            <Badge variant="secondary">{p.workStatus}</Badge>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Status</span>
-            <Badge variant={p.status === "Active" ? "default" : p.status === "Pending" ? "secondary" : "outline"}>
-              {p.status}
-            </Badge>
-          </div>
+
           <div className="pt-2 border-t space-y-3">
             <p className="text-xs font-medium text-muted-foreground">Contact</p>
             <a
