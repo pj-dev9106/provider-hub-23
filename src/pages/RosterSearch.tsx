@@ -343,7 +343,8 @@ export default function RosterSearch() {
                                   onClick={() => handleRowClick(row)}
                                 >
                                   <TableCell className="w-10 p-1" />
-                                  <TableCell className="pl-8 text-muted-foreground font-normal">—</TableCell>
+                                  <TableCell className="pl-6 text-muted-foreground font-normal text-sm">—</TableCell>
+                                  <TableCell />
                                   <TableCell />
                                   <TableCell />
                                   <TableCell className="font-medium">
