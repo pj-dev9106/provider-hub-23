@@ -35,7 +35,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter basename="/provider-hub-23">
+      <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "") || "/"}>
         <AuthProvider>
           <Routes>
             <Route path="/signin" element={<SignInRedirect />} />
